@@ -1,0 +1,30 @@
+// Phone controls and layout.
+const { open, game } = require('./helpers');
+(async () => {
+  const { browser, page, errors, ok } = await open({ mobile: true, save: { banked: 100, tut: 'done' } });
+  ok(!(await page.evaluate(() => document.body.classList.contains('docked'))), 'phone uses the bottom panel');
+  await page.click('[data-zone="0"]'); await page.waitForTimeout(600);
+  ok((await page.evaluate(() => __ds.scene('Dive').W)) === 2600, 'phone gets the compact zone');
+  const bar = await page.evaluate(() => document.getElementById('sheet').getBoundingClientRect().height);
+  ok(bar < 200, `objectives bar stays compact while exploring (${Math.round(bar)} px)`);
+  const s = await page.evaluate(() => { const r = document.getElementById('stick').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  const x0 = (await page.evaluate(() => __ds.sub)).x;
+  await page.mouse.move(s.x, s.y); await page.mouse.down(); await page.mouse.move(s.x + 45, s.y, { steps: 4 });
+  await page.waitForTimeout(900); await page.mouse.up();
+  const x1 = (await page.evaluate(() => __ds.sub)).x;
+  ok(x1 - x0 > 80, `thumb-stick swims the sub (${Math.round(x1 - x0)} px)`);
+  ok(await page.evaluate(() => document.getElementById('act').hidden), 'action button hidden when nothing is near');
+  await game.tp(page, 2); await page.waitForTimeout(300);
+  ok((await page.evaluate(() => document.getElementById('act').textContent)) === 'Open crate', 'action button reads "Open crate" next to the crate');
+  await page.click('#act'); await page.waitForTimeout(200);
+  ok(await page.evaluate(() => document.getElementById('stick').hidden), 'stick hides while the panel is open');
+  const subY = await page.evaluate(() => { const sc = __ds.scene('Dive'); return sc.sub.y - sc.cameras.main.scrollY; });
+  const top = await page.evaluate(() => document.getElementById('sheet').getBoundingClientRect().top);
+  await page.waitForTimeout(900);
+  const subY2 = await page.evaluate(() => { const sc = __ds.scene('Dive'); return sc.sub.y - sc.cameras.main.scrollY; });
+  ok(subY2 < top - 20, `camera keeps the sub visible above the panel (sub at ${Math.round(subY2)}, panel top ${Math.round(top)})`);
+  await page.click('[data-enc="close"]'); await page.waitForTimeout(150);
+  ok((await game.D(page)).done[2] === false, '"Leave it for now" keeps the crate unfinished');
+  ok(errors.length === 0, 'no page errors ' + JSON.stringify(errors));
+  await browser.close();
+})();
